@@ -10,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:developer';
 
 void main() => runApp(MyApp());
 
@@ -48,6 +50,8 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  double _percentage = 0;
+  String _percentageStr = "0%";
   final storage = new FlutterSecureStorage();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn googleSignIn =
@@ -157,10 +161,26 @@ class _MyHomePageState extends State<MyHomePage> {
 
     final directory = await getExternalStorageDirectory();
     print(directory.path);
-    final saveFile = File('${directory.path}/${new DateTime.now().millisecondsSinceEpoch}$fName');
+    final saveFile = File(
+        '${directory.path}/${new DateTime.now().millisecondsSinceEpoch}$fName');
     List<int> dataStore = [];
+    int length = file.length;
+
+    print("file.length${file.length}");
     file.stream.listen((data) {
-      print("DataReceived: ${data.length}");
+      _percentage += data.length / length;
+      print(_percentage);
+      if (_percentage > 0.99) {
+        setState(() {
+          _percentageStr = 'Done';
+        });
+      } else {
+        setState(() {
+          _percentageStr = '${_percentage * 100}%';
+        });
+      }
+
+      //print("DataReceived: ${data.length}");
       dataStore.insertAll(dataStore.length, data);
     }, onDone: () {
       print("Task Done");
@@ -195,7 +215,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 color: Colors.indigo,
                 onPressed: () {
-                  _downloadGoogleDriveFile(list.files[i].name, list.files[i].id);
+                  setState(() {
+                    _percentage = 0;
+                  });
+
+                  _downloadGoogleDriveFile(
+                      list.files[i].name, list.files[i].id);
                 },
               ),
             ),
@@ -228,6 +253,19 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text('List Google Drive Files'),
                     onPressed: _listGoogleDriveFiles,
                     color: Colors.green,
+                  )
+                : Container()),
+            (signedIn
+                ? LinearProgressIndicator(
+                    value: _percentage,
+                    color: Colors.amber,
+                    minHeight: 30,
+                  )
+                : Container()),
+            (signedIn
+                ? Text(
+                    _percentageStr,
+                    style: TextStyle(fontSize: 20, color: Colors.orange),
                   )
                 : Container()),
             (signedIn
